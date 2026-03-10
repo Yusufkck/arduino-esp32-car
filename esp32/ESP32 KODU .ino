@@ -1,8 +1,10 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-const char* ssid     = "FiberHGW_ZT6G32_2.4GHz";
-const char* password = "P4PttKPcFsUd";
+const char* ssid     = "WIFI_ADINIZI_GIRIN";
+const char* password = "WIFI_SIFRENIZI_GIRIN";
+
+//kullanıcı adı ve parolayı güvenlik sebebiyle gizledim
 
 const char* commandUrl = "http://192.168.1.121:8000/command";
 
