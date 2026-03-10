@@ -1,0 +1,91 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid     = "FiberHGW_ZT6G32_2.4GHz";
+const char* password = "P4PttKPcFsUd";
+
+const char* commandUrl = "http://192.168.1.121:8000/command";
+
+HardwareSerial ArduinoUart(2); // UART2 -> GPIO16/17
+
+char lastCmdSent = '\0';
+
+char extractCmdFromJson(const String& s) {
+  // Beklenen: {"cmd":"F"}
+  int i = s.indexOf("\"cmd\"");
+  if (i < 0) return '\0';
+
+  int colon = s.indexOf(':', i);
+  if (colon < 0) return '\0';
+
+  int q1 = s.indexOf('"', colon);
+  if (q1 < 0) return '\0';
+
+  int q2 = s.indexOf('"', q1 + 1);
+  if (q2 < 0) return '\0';
+
+  if (q2 == q1 + 1) return '\0';
+  return s[q1 + 1]; // F / S / B ...
+}
+
+void setup() {
+  Serial.begin(115200);               // USB debug
+  ArduinoUart.begin(9600, SERIAL_8N1, 17, 16);  // RX=17, TX=16
+
+  delay(500);
+  Serial.println("\nESP32 BASLIYOR...");
+
+  WiFi.begin(ssid, password);
+  Serial.print("WiFi baglantisi yapiliyor");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi BAGLANDI!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(commandUrl);
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+      String payload = http.getString();
+      payload.trim();
+
+      char cmd = extractCmdFromJson(payload);
+
+      if (cmd != '\0') {
+        Serial.print("Server payload: ");
+        Serial.println(payload);
+
+        Serial.print("Extract edilen cmd: ");
+        Serial.println(cmd);
+
+        if (cmd != lastCmdSent) {
+          ArduinoUart.write(cmd);
+          lastCmdSent = cmd;
+
+          Serial.print("Arduino'ya gonderildi: ");
+          Serial.println(cmd);
+        }
+      } else {
+        Serial.print("CMD parse edilemedi. Payload: ");
+        Serial.println(payload);
+      }
+
+    } else {
+      Serial.print("HTTP hata kodu: ");
+      Serial.println(httpCode);
+    }
+
+    http.end();
+  } else {
+    Serial.println("WiFi bagli degil!");
+  }
+
+  delay(200);
+}
